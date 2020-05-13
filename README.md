@@ -81,7 +81,7 @@ exists in the open air, feel free to drop me a pull request. I'll integrate it a
 
 ## Contributors to the original project
 Thanks to:
-- [Alessandro Nazzari](https://github.com/zoythum) for relying on this code and helping me test it;
+- [Alessandro Nazzari](https://github.com/zoythum) for relying, helping me test it and providing some catalogues;
 - [Mattia Iamundo](https://github.com/MattiaIamundo) for the same reasons, plus some pretty-printing code he added.
 
 None of us ever thought that taking up that project would have put such strain on us, neither did the one who proposed

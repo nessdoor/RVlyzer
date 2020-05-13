@@ -6,7 +6,7 @@ from operator import attrgetter
 from typing import FrozenSet, List, Tuple, Optional, Mapping, Hashable, Iterable, MutableMapping, \
     NamedTuple, Dict, Union
 
-from networkx import DiGraph, relabel_nodes, dfs_preorder_nodes, Graph
+from networkx import DiGraph, relabel_nodes, dfs_preorder_nodes, Graph, all_simple_paths, restricted_view, simple_cycles
 from networkx.classes.graphviews import subgraph_view
 from networkx.utils import generate_unique_node
 
@@ -530,3 +530,34 @@ def exec_graph(cfg: LocalGraph,
         res.add_edges_from(zip(tail, repeat(edge[1])), kind=Transition.RETURN)
 
     return res
+
+
+def merge_points(cfg: DiGraph) -> FrozenSet[int]:
+    """
+    Find all the merge point in the CFG.
+
+    A merge point is a node on which multiple directed edges converge.
+
+    :arg cfg: the CFG representing a program
+    :return: a frozen set containing all the merge points
+    """
+
+    # Node 0 represents the calling environment, so it must be excluded from the analysis
+    return frozenset((n for n in cfg.nodes.keys() if n != 0 and cfg.in_degree(n) > 1))
+
+
+def loop_back_nodes(cfg: DiGraph):
+    """
+    Find all the nodes of a CFG that are exclusively part of a loop.
+
+    A node is exclusively part of a loop if it belongs only to those paths that traverse the back-loop of a cycle.
+
+    :arg cfg: the CFG representation of a program
+    :return: a frozen set of all the loop-exclusive nodes
+    """
+
+    # Node 0 closes an improper loop over the CFG, so it must be ignored
+    cycle_nodes = frozenset(chain.from_iterable(simple_cycles(restricted_view(cfg, [0], []))))
+    return frozenset(cycle_nodes.difference(chain.from_iterable(
+        # For every path, its last component is node 0; therefore, we have to cut it.
+        map(lambda l: l[:-1], all_simple_paths(cfg, 1, 0)))))
