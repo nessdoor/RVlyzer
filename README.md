@@ -17,7 +17,8 @@ For now, it can help you to:
 - structure statements into proper objects;
 - store R-V code inside objects exposing the `MutableSequence` API;
 - extract basic blocks and CFGs for (nearly) arbitrary pieces of code;
-- map execution flows onto graphs.
+- map execution flows onto graphs;
+- conduct an approximate analysis of register hotness w.r.t. writes.
 
 All graphs are [NetworkX](https://networkx.github.io) graphs, enabling you to apply all of their graph-algorithms
 library goodness to a static code analysis context. And visualization, of course.
@@ -36,18 +37,19 @@ of ASM files. Apart from directly calling constructors, the only alternative is 
 `rvlyzer.rep.fragments.load_src_from_maps()`, which accepts a list of dictionaries describing statements and routes them
 to the appropriate constructors, based on a dictionary record keyed as `role`.
 
-As I said, this code was part of a larger project which has its own funky parser. As soon as I have due time on hand, I
-am planning to re-implement that thing and incorporate it in here. It will be easier for all of us, I assure you...
+As I said, this code was part of a larger project which has its own 
+[funky parser](https://github.com/zoythum/RISC-V-Parser). As soon as I have due time on hand, I am planning to
+re-implement that thing and incorporate it in here. It will be easier for all of us, I assure you...
 
 Anyway, the code itself comes with rich docstrings, so all of the details are dealt with there.
 
-### The Base and Fragments modules
+### The `base` and `fragments` modules
 These two modules deal with the representation of statements and code in a structured, object-oriented way.
 
 Muster your code in there and manipulate it via the familiar "list" interface, supporting single and bulk operations
 through indexed access and slices.
 
-### The Graphs module
+### The `graphs` module
 This module is able to extrapolate basic blocks and CFGs from code fragments. It does so by reasoning over labels and
 jump instructions, so it is pretty naive; nonetheless, it works well with assembly output by an orthodox compiler.
 
@@ -58,6 +60,16 @@ delimited by jumps or labels, so control transfers based on literal immediate op
 
 Moreover, code in this module works on the assumption that the only jumps that load their addresses from the register
 file are procedure returns. Check your code beforehand to see if it contains other uses for these instructions.
+
+### The `heatmaps` module
+Where functions dealing with drawing register heat-maps are contained.
+
+A register heat-map is a structures that represents how much time has passed since the last time a certain register has
+been written to. Functions contained in this module are able to draw maps of basic blocks or entire execution flows in a
+more or less accurate manner.
+
+The only big approximation performed during mapping is related to loops. A practical way of solving this issue without
+foraying into higher dimensions hasn't come to my mind, yet.
 
 ## Improving this codebase
 ### (Near) future developments
@@ -81,7 +93,8 @@ exists in the open air, feel free to drop me a pull request. I'll integrate it a
 
 ## Contributors to the original project
 Thanks to:
-- [Alessandro Nazzari](https://github.com/zoythum) for relying, helping me test it and providing some catalogues;
+- [Alessandro Nazzari](https://github.com/zoythum) for relying on this code, helping me test it and providing some
+  catalogues;
 - [Mattia Iamundo](https://github.com/MattiaIamundo) for the same reasons, plus some pretty-printing code he added.
 
 None of us ever thought that taking up that project would have put such strain on us, neither did the one who proposed

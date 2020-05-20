@@ -6,7 +6,8 @@ from operator import attrgetter
 from typing import FrozenSet, List, Tuple, Optional, Mapping, Hashable, Iterable, MutableMapping, \
     NamedTuple, Dict, Union
 
-from networkx import DiGraph, relabel_nodes, dfs_preorder_nodes, Graph, all_simple_paths, restricted_view, simple_cycles
+from networkx import DiGraph, simple_cycles, restricted_view, all_simple_paths, relabel_nodes, dfs_preorder_nodes, \
+    Graph
 from networkx.classes.graphviews import subgraph_view
 from networkx.utils import generate_unique_node
 
@@ -228,7 +229,8 @@ class LocalGraph:
 
         # Start merging stuff
         merged_eps = chain(self.entry_point_ids, other.entry_point_ids)
-        (merged_graph := self.graph.copy()).update(other.graph)
+        merged_graph = self.graph.copy()
+        merged_graph.update(other.graph)
         merged_terminals = chain(self.terminal_nodes_ids, other.terminal_nodes_ids)
 
         # TODO re-implement with partitions
@@ -381,7 +383,6 @@ def local_cfg(bbs: List[BasicBlock]) -> LocalGraph:
 
     - the basic blocks are provided in the same order they appear inside the original code fragment;
     - the first block is the entry-point;
-    - all `call` instructions point to code not contained in the provided basic blocks;
     - all jumps are local;
     - all blocks with a final `RETURN` transition actually return control to whoever caused the PC to reach the EP.
     When these conditions are satisfied, a well-formed local graph is returned.
@@ -409,7 +410,7 @@ def local_cfg(bbs: List[BasicBlock]) -> LocalGraph:
             local_graph.add_edge(parent_seq_block, bb.identifier, kind=Transition.SEQ)
             parent_seq_block = None
         elif pending_call is not None:
-            # Set the current node as the return point of a procedure call
+            # Set the current node as the return point of an external procedure call
             calls.append(ProcedureCall(pending_call[0], pending_call[1], bb.identifier))
             pending_call = None
 
@@ -438,7 +439,16 @@ def local_cfg(bbs: List[BasicBlock]) -> LocalGraph:
         # Resolve the internal symbolic jumps and add the missing edges
         local_graph.add_edge(jumper, local_symbol_table[dst], kind=kind)
 
-    return LocalGraph([bbs[0].identifier], local_graph, calls, terminal_nodes)
+    # Transform recursive calls into internal call arcs
+    # TODO re-implement with partitions or sets
+    ci, ce = tee(calls)
+    for cll in filter(lambda c: c.callee in local_symbol_table, ci):
+        local_graph.add_edge(cll.caller, cll.confluence_point, kind=Transition.CALL, callee=cll.callee)
+
+    return LocalGraph([bbs[0].identifier],
+                      local_graph,
+                      filter(lambda c: c.callee not in local_symbol_table, ce),
+                      terminal_nodes)
 
 
 def internalize_calls(cfg: LocalGraph) -> LocalGraph:
@@ -546,7 +556,7 @@ def merge_points(cfg: DiGraph) -> FrozenSet[int]:
     return frozenset((n for n in cfg.nodes.keys() if n != 0 and cfg.in_degree(n) > 1))
 
 
-def loop_back_nodes(cfg: DiGraph):
+def loop_back_nodes(cfg: DiGraph) -> FrozenSet[int]:
     """
     Find all the nodes of a CFG that are exclusively part of a loop.
 
